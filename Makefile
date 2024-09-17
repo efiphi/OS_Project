@@ -1,7 +1,7 @@
 # Makefile
 
 CXX = g++
-CXXFLAGS = -Wall -std=c++17
+CXXFLAGS = -Wall -std=c++17 -g
 OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o
 
 # All Target
@@ -39,10 +39,16 @@ responseStage.o: responseStage.cpp responseStage.hpp
 threadPool.o: threadPool.cpp threadPool.hpp
 	$(CXX) $(CXXFLAGS) -c threadPool.cpp -o threadPool.o
 
+# Valgrind Targets
+memcheck: mst_solver
+	valgrind --leak-check=full --track-origins=yes ./mst_solver
+
+helgrind: mst_solver
+	valgrind --tool=helgrind ./mst_solver
+
+cachegrind: mst_solver
+	valgrind --tool=cachegrind ./mst_solver
+
 # Clean
 clean:
 	rm -f *.o mst_solver
-
-# Run the project
-run: $(TARGET)
-	./$(TARGET)

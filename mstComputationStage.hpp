@@ -5,14 +5,15 @@
 #include "pipelineData.hpp"
 #include "mst_factory.hpp"
 #include <iostream>
+#include <memory> 
 
 class mstComputationStage : public pipelineStage {
 public:
     void process(std::shared_ptr<pipelineData> data) override {
         if (!data) return;
 
-        // Determine the algorithm to use
-        MSTSolver* solver = MSTFactory::createSolver(data->algorithm == "prim" ? PRIM : KRUSKAL);
+        // Determine the algorithm to use and create the solver
+        std::unique_ptr<MSTSolver> solver = MSTFactory::createSolver(data->algorithm == "prim" ? PRIM : KRUSKAL);
         if (solver) {
             // Compute the MST
             auto mstEdges = solver->solveMST(data->graph);
@@ -22,9 +23,6 @@ public:
 
             // Debug output
             std::cout << "Debug: MST computed using " << data->algorithm << " algorithm." << std::endl;
-
-            // Clean up the solver
-            delete solver;
         } else {
             data->response = "Invalid algorithm specified.";
             std::cerr << "Error: Invalid algorithm specified for MST computation." << std::endl;

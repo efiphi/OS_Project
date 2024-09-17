@@ -13,6 +13,8 @@ public:
     // Start the server to listen and accept client connections
     void start();
 
+    void stop();
+
     // Static thread pool accessible by tasks
     static threadPool pool;
 

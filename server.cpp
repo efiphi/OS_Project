@@ -62,6 +62,12 @@ void server::start() {
     close(server_fd);
 }
 
+void server::stop() {
+    std::cout << "Stopping server..." << std::endl;
+    pool.stop(); // Stop the thread pool to ensure all threads finish
+}
+
+
 void server::handleClient(int client_fd, std::shared_ptr<pipelineData> data) {
     char buffer[1024];
     while (true) {
