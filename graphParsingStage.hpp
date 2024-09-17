@@ -7,15 +7,17 @@
 class graphParsingStage : public pipelineStage {
 public:
     void process(std::shared_ptr<pipelineData> data) override {
-        // Parse the command and initialize the graph (e.g., "create <V> <E>")
+        // Only handle "create" command
         if (data->command == "create") {
-            // Parse vertices and edges from data
-            data->result = "Graph created with " + std::to_string(data->vertices) + " vertices.";
-        }
+            // Initialize the graph
+            data->graph = Graph(data->vertices);
+            data->response = "Graph created with " + std::to_string(data->vertices) + " vertices and " + std::to_string(data->edges) + " edges.";
+            std::cout << "Debug: Graph created with " << data->vertices << " vertices and " << data->edges << " edges." << std::endl;
 
-        // Pass to the next stage
-        if (nextStage) {
-            nextStage->process(data);
+            // Pass to the next stage
+            if (nextStage) {
+                nextStage->process(data);
+            }
         }
     }
 };

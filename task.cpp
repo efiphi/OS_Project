@@ -1,23 +1,49 @@
 #include "task.hpp"
+#include "graph.hpp"
+#include "graphParsingStage.hpp"
+#include "graphUpdateStage.hpp"
+#include "mstComputationStage.hpp"
+#include "responseStage.hpp"
+#include "server.hpp"
+#include <sstream>
 #include <iostream>
+#include <unistd.h>
 
-// Constructor for pipeline stages
-task::task(std::shared_ptr<pipelineStage> pipeline, std::shared_ptr<pipelineData> data)
-    : pipeline_(pipeline), data_(data), func_(nullptr) {}
+task::task(TaskType type, std::shared_ptr<pipelineData> data)
+    : type_(type), data_(data) {}
 
-// New constructor for lambda functions
-task::task(std::function<void()> func)
-    : pipeline_(nullptr), data_(nullptr), func_(func) {}
-
-// Execute method
 void task::execute() {
-    if (func_) {
-        // If the task was created with a lambda function, execute it
-        func_();
-    } else if (pipeline_ && data_) {
-        // Original pipeline processing
-        pipeline_->process(data_);
-    } else {
-        std::cerr << "Task is not properly initialized." << std::endl;
+    std::cout << "Executing task of type: " << static_cast<int>(type_) << " with FD: " << data_->client_fd << std::endl;
+
+    switch (type_) {
+        case TaskType::GraphUpdate:
+            {
+                graphUpdateStage updateStage;
+                updateStage.process(data_);
+            }
+            break;
+
+        case TaskType::MSTComputation:
+            {
+                mstComputationStage mstStage;
+                mstStage.process(data_);
+            }
+            break;
+
+        case TaskType::Response:
+            {
+                responseStage responseStage;
+                responseStage.process(data_);
+            }
+            break;
+
+        default:
+            std::cerr << "Unknown task type: " << static_cast<int>(type_) << std::endl;
+            break;
     }
+}
+
+void task::enqueueTask(TaskType type, std::shared_ptr<pipelineData> data) {
+    std::cout << "Enqueuing task of type: " << static_cast<int>(type) << " for FD: " << data->client_fd << std::endl;
+    server::pool.enqueue(std::make_shared<task>(type, data));
 }

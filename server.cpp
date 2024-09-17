@@ -2,6 +2,7 @@
 #include "graph.hpp"
 #include "mst_factory.hpp"
 #include "task.hpp"
+#include "pipelineData.hpp"
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
@@ -9,7 +10,9 @@
 #include <arpa/inet.h>
 #include <cstring>
 
-server::server(int port, size_t threadCount) : port(port), pool(threadCount) {}
+threadPool server::pool(4);
+
+server::server(int port) : port(port) {}
 
 void server::start() {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,17 +49,21 @@ void server::start() {
             continue;
         }
 
-        pool.enqueue(std::make_shared<task>([client_fd]() {
-            handleClient(client_fd);
-        }));
+        std::cout << "Accepted client connection. Client FD: " << client_fd << std::endl;
+
+        // Allocate a new pipelineData for this client
+        auto data = std::make_shared<pipelineData>();
+        data->client_fd = client_fd;
+
+        // Directly call handleClient for command processing
+        handleClient(client_fd, data);
     }
 
     close(server_fd);
 }
 
-void server::handleClient(int client_fd) {
+void server::handleClient(int client_fd, std::shared_ptr<pipelineData> data) {
     char buffer[1024];
-    Graph graph(0); // Initial empty graph
     while (true) {
         memset(buffer, 0, sizeof(buffer));
         int bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
@@ -68,14 +75,18 @@ void server::handleClient(int client_fd) {
             std::istringstream iss(command);
             std::string cmd;
             iss >> cmd;
+            data->command = cmd; // Store command in pipelineData
 
             try {
                 if (cmd == "create") {
                     int V, E;
                     if (iss >> V >> E) {
-                        graph = Graph(V); // Create a new graph
-                        std::string response = "Graph created with " + std::to_string(V) + " vertices and " + std::to_string(E) + " edges.\n";
-                        write(client_fd, response.c_str(), response.length());
+                        data->graph = Graph(V);
+                        data->vertices = V;
+                        data->edges = E;
+                        data->response = "Graph created with " + std::to_string(V) + " vertices and " + std::to_string(E) + " edges.\n";
+                        std::cout << "Debug: Enqueuing Response task for 'create'" << std::endl;
+                        task::enqueueTask(TaskType::Response, data);
                     } else {
                         std::string response = "Invalid input for create command. Usage: create <number_of_vertices> <number_of_edges>\n";
                         write(client_fd, response.c_str(), response.length());
@@ -83,48 +94,38 @@ void server::handleClient(int client_fd) {
                 } else if (cmd == "add") {
                     int v, w, weight;
                     if (iss >> v >> w >> weight) {
-                        graph.addEdge(v, w, weight);
-                        std::string response = "Edge added from " + std::to_string(v) + " to " + std::to_string(w) + " with weight " + std::to_string(weight) + ".\n";
-                        write(client_fd, response.c_str(), response.length());
+                        data->v = v;
+                        data->w = w;
+                        data->weight = weight;
+                        std::cout << "Debug: Enqueuing GraphUpdate task for 'add'" << std::endl;
+                        // Enqueue to GraphUpdate stage
+                        task::enqueueTask(TaskType::GraphUpdate, data);
                     } else {
-                        std::string response = "Invalid input for add command. Usage: add <from_vertex> <to_vertex> <weight>\n";
-                        write(client_fd, response.c_str(), response.length());
+                        data->response = "Invalid input for add command.";
+                        task::enqueueTask(TaskType::Response, data);
                     }
                 } else if (cmd == "solve") {
                     std::string algo;
                     if (iss >> algo) {
-                        MSTSolver* solver = nullptr;
-                        if (algo == "prim") {
-                            solver = MSTFactory::createSolver(PRIM);
-                        } else if (algo == "kruskal") {
-                            solver = MSTFactory::createSolver(KRUSKAL);
-                        }
-
-                       if (solver) {
-                            std::vector<Edge> mstEdges = solver->solveMST(graph);
-                            std::string mstResults = solver->getMSTResults(graph, mstEdges);
-                             delete solver;
-                             write(client_fd, mstResults.c_str(), mstResults.length()); // Send results to client
-                                
+                        data->algorithm = algo;
+                        // Enqueue to MSTComputation stage
+                        std::cout << "Debug: Enqueuing MSTComputation task for 'solve'" << std::endl;
+                        task::enqueueTask(TaskType::MSTComputation, data);
                     } else {
-                            std::string response = "Unknown algorithm. Use 'prim' or 'kruskal'.\n";
-                            write(client_fd, response.c_str(), response.length());
-                        }
-                    } else {
-                        std::string response = "Invalid input for solve command. Usage: solve <algorithm>\n";
-                        write(client_fd, response.c_str(), response.length());
+                        data->response = "Invalid input for solve command.";
+                        task::enqueueTask(TaskType::Response, data);
                     }
                 } else {
-                    std::string response = "Unknown command: " + cmd + "\n";
-                    write(client_fd, response.c_str(), response.length());
+                    data->response = "Unknown command.";
+                    task::enqueueTask(TaskType::Response, data);
                 }
             } catch (const std::exception& e) {
-                std::string response = "Error: " + std::string(e.what()) + "\n";
-                write(client_fd, response.c_str(), response.length());
+                data->response = "Error: " + std::string(e.what());
+                task::enqueueTask(TaskType::Response, data);
             }
         } else {
             if (bytes_read == 0) {
-                std::cout << "Client disconnected" << std::endl;
+                std::cout << "Client disconnected. Client FD: " << client_fd << std::endl;
                 close(client_fd);
                 break;
             } else {

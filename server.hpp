@@ -1,19 +1,26 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include "threadPool.hpp" 
-#include <netinet/in.h>   // Include for sockaddr_in
+#include "pipelineData.hpp"
+#include "threadPool.hpp"
+#include <memory>
 
 class server {
 public:
-    server(int port, size_t threadCount);
+    // Constructor to initialize the server with the port number
+    server(int port);
+
+    // Start the server to listen and accept client connections
     void start();
+
+    // Static thread pool accessible by tasks
+    static threadPool pool;
 
 private:
     int port;
-    threadPool pool; 
 
-    static void handleClient(int client_fd);
+    // Handle the client connection and enqueue tasks
+    static void handleClient(int client_fd, std::shared_ptr<pipelineData> data);
 };
 
 #endif // SERVER_HPP

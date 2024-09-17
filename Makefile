@@ -1,40 +1,47 @@
-# Compiler and flags
+# Makefile
+
 CXX = g++
 CXXFLAGS = -Wall -std=c++17
+OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o
 
-# Target executable
-TARGET = mst_solver
+# All Target
+all: mst_solver
 
-# Source files
-SOURCES = graph.cpp \
-          prim_mst_solver.cpp \
-          kruskal_mst_solver.cpp \
-          mst_solver.cpp \
-          main.cpp \
-          server.cpp \
-          task.cpp \
-          graphUpdateStage.cpp \
-          mstComputationStage.cpp \
-          responseStage.cpp \
-          threadPool.cpp \
+# Link
+mst_solver: $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o mst_solver $(OBJECTS)
 
-# Object files (derived from source files)
-OBJECTS = $(SOURCES:.cpp=.o)
+# Compile
+graph.o: graph.cpp graph.hpp
+	$(CXX) $(CXXFLAGS) -c graph.cpp -o graph.o
 
-# Default rule
-all: $(TARGET)
+prim_mst_solver.o: prim_mst_solver.cpp prim_mst_solver.hpp
+	$(CXX) $(CXXFLAGS) -c prim_mst_solver.cpp -o prim_mst_solver.o
 
-# Link object files to create the executable
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
+kruskal_mst_solver.o: kruskal_mst_solver.cpp kruskal_mst_solver.hpp
+	$(CXX) $(CXXFLAGS) -c kruskal_mst_solver.cpp -o kruskal_mst_solver.o
 
-# Compile source files into object files
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+mst_solver.o: mst_solver.cpp mst_solver.hpp
+	$(CXX) $(CXXFLAGS) -c mst_solver.cpp -o mst_solver.o
 
-# Clean up the build (removes object files and the executable)
+main.o: main.cpp
+	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o
+
+server.o: server.cpp server.hpp
+	$(CXX) $(CXXFLAGS) -c server.cpp -o server.o
+
+task.o: task.cpp task.hpp
+	$(CXX) $(CXXFLAGS) -c task.cpp -o task.o
+
+responseStage.o: responseStage.cpp responseStage.hpp
+	$(CXX) $(CXXFLAGS) -c responseStage.cpp -o responseStage.o
+
+threadPool.o: threadPool.cpp threadPool.hpp
+	$(CXX) $(CXXFLAGS) -c threadPool.cpp -o threadPool.o
+
+# Clean
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f *.o mst_solver
 
 # Run the project
 run: $(TARGET)

@@ -1,18 +1,31 @@
-#ifndef PIPELINE_DATA_HPP
-#define PIPELINE_DATA_HPP
+// pipelineData.hpp
+#ifndef PIPELINEDATA_HPP
+#define PIPELINEDATA_HPP
 
+#include <memory>
 #include <string>
-#include <vector>
+#include "graph.hpp"
 
 class pipelineData {
 public:
-    // Placeholder data members
-    std::string command;               // Command type (e.g., "create", "add", "remove", "solve")
-    int vertices;                      // Number of vertices in the graph
-    std::vector<std::tuple<int, int, int>> edges;  // Graph edges (from, to, weight)
-    std::string result;                // Result to be sent back to the client
+    // Graph-related members
+    Graph graph;
+    int edges;
+    int vertices;
+    int v, w, weight;
+    int client_fd;
 
-    
+    pipelineData() : graph(0), v(0), w(0), weight(0), client_fd(-1) {}
+
+    // MST computation
+    std::string algorithm;
+
+    // Response to be sent back to the client
+    std::string response;
+
+    // Command type (create, add, etc.)
+    std::string command;
+
 };
 
-#endif // PIPELINE_DATA_HPP
+#endif // PIPELINEDATA_HPP
