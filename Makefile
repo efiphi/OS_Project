@@ -1,54 +1,64 @@
-# Makefile
-
 CXX = g++
-CXXFLAGS = -Wall -std=c++17 -g
-OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o
+CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -g
+INCLUDES = -I.
+LIBS =
 
-# All Target
-all: mst_solver
+# Source files for Pipeline server
+PIPELINE_SOURCES = graph.cpp mst.cpp pipelineServer.cpp
+PIPELINE_OBJECTS = $(PIPELINE_SOURCES:.cpp=.o)
 
-# Link
-mst_solver: $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o mst_solver $(OBJECTS)
+# Source files for Leader-Follower server
+LEADER_FOLLOWER_SOURCES = graph.cpp mst.cpp leaderFollowerServer.cpp
+LEADER_FOLLOWER_OBJECTS = $(LEADER_FOLLOWER_SOURCES:.cpp=.o)
 
-# Compile
-graph.o: graph.cpp graph.hpp
-	$(CXX) $(CXXFLAGS) -c graph.cpp -o graph.o
+# Executables
+PIPELINE_EXEC = pipeline_server
+LEADER_FOLLOWER_EXEC = leaderfollower_server
 
-prim_mst_solver.o: prim_mst_solver.cpp prim_mst_solver.hpp
-	$(CXX) $(CXXFLAGS) -c prim_mst_solver.cpp -o prim_mst_solver.o
+.PHONY: all clean run_pipeline run_leaderfollower valgrind_pipeline valgrind_leaderfollower helgrind_pipeline helgrind_leaderfollower cg_pipeline cg_leaderfollower
 
-kruskal_mst_solver.o: kruskal_mst_solver.cpp kruskal_mst_solver.hpp
-	$(CXX) $(CXXFLAGS) -c kruskal_mst_solver.cpp -o kruskal_mst_solver.o
+# Default build compiles both servers
+all: $(PIPELINE_EXEC) $(LEADER_FOLLOWER_EXEC)
 
-mst_solver.o: mst_solver.cpp mst_solver.hpp
-	$(CXX) $(CXXFLAGS) -c mst_solver.cpp -o mst_solver.o
+# Compile the Pipeline server
+$(PIPELINE_EXEC): $(PIPELINE_OBJECTS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 
-main.o: main.cpp
-	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o
+# Compile the Leader-Follower server
+$(LEADER_FOLLOWER_EXEC): $(LEADER_FOLLOWER_OBJECTS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 
-server.o: server.cpp server.hpp
-	$(CXX) $(CXXFLAGS) -c server.cpp -o server.o
+# Run the Pipeline server
+run_pipeline: $(PIPELINE_EXEC)
+	./$(PIPELINE_EXEC)
 
-task.o: task.cpp task.hpp
-	$(CXX) $(CXXFLAGS) -c task.cpp -o task.o
+# Run the Leader-Follower server
+run_leaderfollower: $(LEADER_FOLLOWER_EXEC)
+	./$(LEADER_FOLLOWER_EXEC)
 
-responseStage.o: responseStage.cpp responseStage.hpp
-	$(CXX) $(CXXFLAGS) -c responseStage.cpp -o responseStage.o
+# Valgrind memcheck for Pipeline server
+valgrind_pipeline: $(PIPELINE_EXEC)
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./$(PIPELINE_EXEC)
 
-threadPool.o: threadPool.cpp threadPool.hpp
-	$(CXX) $(CXXFLAGS) -c threadPool.cpp -o threadPool.o
+# Valgrind memcheck for Leader-Follower server
+valgrind_leaderfollower: $(LEADER_FOLLOWER_EXEC)
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./$(LEADER_FOLLOWER_EXEC)
 
-# Valgrind Targets
-memcheck: mst_solver
-	valgrind --leak-check=full --track-origins=yes ./mst_solver
+# Valgrind helgrind for Pipeline server (detecting race conditions)
+helgrind_pipeline: $(PIPELINE_EXEC)
+	valgrind --tool=helgrind ./$(PIPELINE_EXEC)
 
-helgrind: mst_solver
-	valgrind --tool=helgrind ./mst_solver
+# Valgrind helgrind for Leader-Follower server (detecting race conditions)
+helgrind_leaderfollower: $(LEADER_FOLLOWER_EXEC)
+	valgrind --tool=helgrind ./$(LEADER_FOLLOWER_EXEC)
 
-cachegrind: mst_solver
-	valgrind --tool=cachegrind ./mst_solver
+# Valgrind cachegrind for Pipeline server (cache performance analysis)
+cg_pipeline: $(PIPELINE_EXEC)
+	valgrind --tool=cachegrind ./$(PIPELINE_EXEC)
 
-# Clean
+# Valgrind cachegrind for Leader-Follower server (cache performance analysis)
+cg_leaderfollower: $(LEADER_FOLLOWER_EXEC)
+	valgrind --tool=cachegrind ./$(LEADER_FOLLOWER_EXEC)
+
 clean:
-	rm -f *.o mst_solver
+	rm -f $(PIPELINE_OBJECTS) $(LEADER_FOLLOWER_OBJECTS) $(PIPELINE_EXEC) $(LEADER_FOLLOWER_EXEC)

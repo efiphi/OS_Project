@@ -1,31 +1,31 @@
-#ifndef MST_HPP
-#define MST_HPP
-
 #include "graph.hpp"
+#include <limits>
+#include <functional>
+#include <queue>
+#include <stack>
+#include <algorithm>
+#include <random>
+#include <ctime>
 #include <vector>
-#include <iostream>
+using namespace std;
+class MST
+{
+    Graph graph;
+    vector<vector<int>> mst;
+    void kruskal(vector<vector<int>> &adj);
+    void boruvka(vector<vector<int>> &adj);
+ 
 
-class MST {
 public:
-    // Constructor to initialize the MST for a graph with V vertices
-    MST(int V);
+    MST(Graph graph, string algo);
+    int getWieght();
+    int averageDist();
+    vector<int> longestPath(int start, int end);
+    vector<int> shortestPath(int start, int end);
+    vector<vector<int>> getMST();
+    void printMST();
 
-    // Add an edge to the MST
-    void addEdge(const Edge& edge);
-
-    // Get total weight of the MST
-    int getTotalWeight() const;
-
-    // Get all edges in the MST
-    const std::vector<Edge>& getTreeEdges() const;
-
-    // Print the MST
-    void printMST() const;
-
-private:
-    int V; // Number of vertices in the graph
-    std::vector<Edge> mstEdges; // Edges that are part of the MST
-    int totalWeight; // Total weight of the MST
+    vector<int> reconstructPath(const vector<int> &parent_node, int start, int end);
+    void dfs(const vector<vector<pair<int, int>>> &adj, int node, int parent, vector<int> &distance, vector<int> &parent_node);
+    vector<vector<pair<int, int>>> buildAdjList(const vector<vector<int>> &mst);
 };
-
-#endif // MST_HPP
