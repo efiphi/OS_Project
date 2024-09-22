@@ -2,7 +2,7 @@
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -g
-OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o
+OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o ActiveObject.o
 
 # All Target
 all: mst_solver
@@ -38,6 +38,9 @@ responseStage.o: responseStage.cpp responseStage.hpp
 
 threadPool.o: threadPool.cpp threadPool.hpp
 	$(CXX) $(CXXFLAGS) -c threadPool.cpp -o threadPool.o
+
+ActiveObject.o: ActiveObject.cpp ActiveObject.hpp
+	$(CXX) $(CXXFLAGS) -c ActiveObject.cpp -o ActiveObject.o
 
 # Valgrind Targets
 memcheck: mst_solver

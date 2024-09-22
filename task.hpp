@@ -10,7 +10,9 @@ enum class TaskType {
     Response,
     CREATE,
     ADD,
-    SOLVE
+    SOLVE,
+    CommandProcessing
+    
 };
 
 class task {

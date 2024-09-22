@@ -1,16 +1,12 @@
 #include "server.hpp"
-#include "graph.hpp"
-#include "mst_factory.hpp"
 #include "task.hpp"
-#include "pipelineData.hpp"
+#include "mst_solver.hpp"  // Include the MSTSolver header
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cstring>
-
-threadPool server::pool(4);
 
 server::server(int port) : port(port) {}
 
@@ -26,7 +22,7 @@ void server::start() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
 
-    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("bind failed");
         close(server_fd);
         return;
@@ -43,7 +39,7 @@ void server::start() {
     while (true) {
         sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
-        int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+        int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
         if (client_fd < 0) {
             perror("accept failed");
             continue;
@@ -51,12 +47,10 @@ void server::start() {
 
         std::cout << "Accepted client connection. Client FD: " << client_fd << std::endl;
 
-        // Allocate a new pipelineData for this client
         auto data = std::make_shared<pipelineData>();
         data->client_fd = client_fd;
 
-        // Directly call handleClient for command processing
-        handleClient(client_fd, data);
+        commandProcessing.enqueueTask([this, client_fd, data]() { handleClient(client_fd, data); });
     }
 
     close(server_fd);
@@ -64,9 +58,7 @@ void server::start() {
 
 void server::stop() {
     std::cout << "Stopping server..." << std::endl;
-    pool.stop(); // Stop the thread pool to ensure all threads finish
 }
-
 
 void server::handleClient(int client_fd, std::shared_ptr<pipelineData> data) {
     char buffer[1024];
@@ -81,53 +73,65 @@ void server::handleClient(int client_fd, std::shared_ptr<pipelineData> data) {
             std::istringstream iss(command);
             std::string cmd;
             iss >> cmd;
-            data->command = cmd; // Store command in pipelineData
+            data->command = cmd;
 
-            try {
-                if (cmd == "create") {
-                    int V, E;
-                    if (iss >> V >> E) {
-                        data->graph = Graph(V);
-                        data->vertices = V;
-                        data->edges = E;
-                        data->response = "Graph created with " + std::to_string(V) + " vertices and " + std::to_string(E) + " edges.\n";
-                        std::cout << "Debug: Enqueuing Response task for 'create'" << std::endl;
-                        task::enqueueTask(TaskType::Response, data);
-                    } else {
-                        std::string response = "Invalid input for create command. Usage: create <number_of_vertices> <number_of_edges>\n";
-                        write(client_fd, response.c_str(), response.length());
-                    }
-                } else if (cmd == "add") {
-                    int v, w, weight;
-                    if (iss >> v >> w >> weight) {
-                        data->v = v;
-                        data->w = w;
-                        data->weight = weight;
-                        std::cout << "Debug: Enqueuing GraphUpdate task for 'add'" << std::endl;
-                        // Enqueue to GraphUpdate stage
-                        task::enqueueTask(TaskType::GraphUpdate, data);
-                    } else {
-                        data->response = "Invalid input for add command.";
-                        task::enqueueTask(TaskType::Response, data);
-                    }
-                } else if (cmd == "solve") {
-                    std::string algo;
-                    if (iss >> algo) {
-                        data->algorithm = algo;
-                        // Enqueue to MSTComputation stage
-                        std::cout << "Debug: Enqueuing MSTComputation task for 'solve'" << std::endl;
-                        task::enqueueTask(TaskType::MSTComputation, data);
-                    } else {
-                        data->response = "Invalid input for solve command.";
-                        task::enqueueTask(TaskType::Response, data);
-                    }
+            if (cmd == "create") {
+                int V, E;
+                if (iss >> V >> E) {
+                    data->graph = Graph(V);
+                    data->response = "Graph created with " + std::to_string(V) + " vertices and " + std::to_string(E) + " edges.\n";
+                    graphUpdate.enqueueTask([this, data]() {
+                        response.enqueueTask([data]() {
+                            write(data->client_fd, data->response.c_str(), data->response.length());
+                        });
+                    });
                 } else {
-                    data->response = "Unknown command.";
-                    task::enqueueTask(TaskType::Response, data);
+                    data->response = "Invalid input for create command.\n";
+                    response.enqueueTask([data]() {
+                        write(data->client_fd, data->response.c_str(), data->response.length());
+                    });
                 }
-            } catch (const std::exception& e) {
-                data->response = "Error: " + std::string(e.what());
-                task::enqueueTask(TaskType::Response, data);
+            } else if (cmd == "add") {
+                int v, w, weight;
+                if (iss >> v >> w >> weight) {
+                    data->graph.addEdge(v, w, weight);
+                    data->response = "Edge added: " + std::to_string(v) + " -> " + std::to_string(w) + " with weight " + std::to_string(weight) + ".\n";
+                    response.enqueueTask([data]() {
+                        write(data->client_fd, data->response.c_str(), data->response.length());
+                    });
+                } else {
+                    data->response = "Invalid input for add command.\n";
+                    response.enqueueTask([data]() {
+                        write(data->client_fd, data->response.c_str(), data->response.length());
+                    });
+                }
+            } else if (cmd == "solve") {
+                std::string algo;
+                if (iss >> algo) {
+                    data->algorithm = algo;
+
+                    // Enqueue task for MST computation
+                    mstComputation.enqueueTask([this, data]() {
+                        // Assuming you have a way to compute the MST and get the edges
+                        std::vector<Edge> mstEdges = computeMST(data->graph, data->algorithm); // Replace with your actual MST computation method
+                        MSTSolver solver;
+                        data->response = solver.getMSTResults(data->graph, mstEdges); // Use the new function to get results
+                        
+                        response.enqueueTask([data]() {
+                            write(data->client_fd, data->response.c_str(), data->response.length());
+                        });
+                    });
+                } else {
+                    data->response = "Invalid input for solve command.\n";
+                    response.enqueueTask([data]() {
+                        write(data->client_fd, data->response.c_str(), data->response.length());
+                    });
+                }
+            } else {
+                data->response = "Unknown command.\n";
+                response.enqueueTask([data]() {
+                    write(data->client_fd, data->response.c_str(), data->response.length());
+                });
             }
         } else {
             if (bytes_read == 0) {
