@@ -1,6 +1,7 @@
 #include "server.hpp"
 #include "task.hpp"
-#include "mst_solver.hpp"  // Include the MSTSolver header
+#include "mst_solver.hpp"
+#include "mst_factory.hpp"  // Include the MSTFactory header
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
@@ -110,12 +111,16 @@ void server::handleClient(int client_fd, std::shared_ptr<pipelineData> data) {
                 if (iss >> algo) {
                     data->algorithm = algo;
 
-                    // Enqueue task for MST computation
                     mstComputation.enqueueTask([this, data]() {
-                        // Assuming you have a way to compute the MST and get the edges
-                        std::vector<Edge> mstEdges = computeMST(data->graph, data->algorithm); // Replace with your actual MST computation method
-                        MSTSolver solver;
-                        data->response = solver.getMSTResults(data->graph, mstEdges); // Use the new function to get results
+                        // Use MSTFactory to create the appropriate MST solver
+                        MSTAlgorithmType algoType = (data->algorithm == "prim") ? PRIM : KRUSKAL;
+                        auto solver = MSTFactory::createSolver(algoType);
+
+                        // Compute MST edges
+                        std::vector<Edge> mstEdges = solver-> solveMST(data->graph);  // Assuming the solve method returns the edges
+
+                        // Get the MST results
+                        data->response = solver->getMSTResults(data->graph, mstEdges);
                         
                         response.enqueueTask([data]() {
                             write(data->client_fd, data->response.c_str(), data->response.length());

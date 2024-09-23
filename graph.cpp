@@ -97,27 +97,25 @@ int Graph::findLongestDistance(const std::vector<Edge>& mstEdges) const {
 
 
 
-// Calculate the average distance between two vertices in the MST
 double Graph::calculateAverageDistance(const std::vector<Edge>& mstEdges) const {
     // Create adjacency list for the MST
     std::vector<std::vector<Edge>> mstAdj(V);
 
-   
     for (const Edge& edge : mstEdges) {
-        mstAdj[edge.v].push_back(edge);
-        mstAdj[edge.w].push_back(Edge(edge.w, edge.v, edge.weight)); // Add reverse direction
+        mstAdj[edge.v].push_back(edge); // Forward edge
+        mstAdj[edge.w].push_back(Edge(edge.w, edge.v, edge.weight)); // Reverse direction
     }
 
-    // Use Floyd-Warshall or BFS to compute all pairwise shortest paths
+    // Initialize distance matrix for the MST
     std::vector<std::vector<int>> dist(V, std::vector<int>(V, INT_MAX));
     for (int i = 0; i < V; i++) {
-        dist[i][i] = 0;
+        dist[i][i] = 0; // Distance to self is 0
     }
 
     // Fill distances based on MST edges
     for (const Edge& edge : mstEdges) {
         dist[edge.v][edge.w] = edge.weight;
-        dist[edge.w][edge.v] = edge.weight;
+        dist[edge.w][edge.v] = edge.weight; // Undirected
     }
 
     // Floyd-Warshall algorithm to compute shortest paths between all pairs
@@ -137,16 +135,17 @@ double Graph::calculateAverageDistance(const std::vector<Edge>& mstEdges) const 
 
     for (int i = 0; i < V; ++i) {
         for (int j = i + 1; j < V; ++j) {
-            if (dist[i][j] != INT_MAX) {
+            if (dist[i][j] != INT_MAX) { // Ignore pairs not connected
                 totalDistance += dist[i][j];
                 totalPairs++;
             }
         }
     }
 
-
+    // Calculate and return the average distance
     return totalPairs > 0 ? static_cast<double>(totalDistance) / totalPairs : 0.0;
 }
+
 
 
 
