@@ -1,4 +1,3 @@
-// pipelineData.hpp
 #ifndef PIPELINEDATA_HPP
 #define PIPELINEDATA_HPP
 

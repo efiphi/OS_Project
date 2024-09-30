@@ -1,11 +1,15 @@
 # Makefile
 
 CXX = g++
+COVERAGE_FLAGS = --coverage
 CXXFLAGS = -Wall -std=c++17 -g
-OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o
+OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o ActiveObject.o
+# Source files
+SRCS = $(wildcard *.cpp)
+LEADEROBJ = leaderFollowerServer.o graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o task.o responseStage.o ActiveObject.o
 
 # All Target
-all: mst_solver
+all: mst_solver leaderFollower
 
 # Link
 mst_solver: $(OBJECTS)
@@ -39,16 +43,44 @@ responseStage.o: responseStage.cpp responseStage.hpp
 threadPool.o: threadPool.cpp threadPool.hpp
 	$(CXX) $(CXXFLAGS) -c threadPool.cpp -o threadPool.o
 
+ActiveObject.o: ActiveObject.cpp ActiveObject.hpp
+	$(CXX) $(CXXFLAGS) -c ActiveObject.cpp -o ActiveObject.o
+
+leaderFollowerServer.o: leaderFollowerServer.cpp leaderFollowerServer.hpp
+	$(CXX) $(CXXFLAGS) -c leaderFollowerServer.cpp -o leaderFollowerServer.o
+
+leaderFollower: $(LEADEROBJ)
+	$(CXX) $(CXXFLAGS) -o leaderFollower $(LEADEROBJ)
+
+# Generate code coverage report
+coverageLF: leaderFollower
+	./leaderFollower -v 6 -e 10
+	@for file in $(SRCS); do \
+		gcov -o build $$file; \
+	done
+	mkdir -p coverage
+	mv *.gcov coverage/
+
+memcheckLF: leaderFollower
+	valgrind --leak-check=full --track-origins=yes ./leaderFollower
+
+helgrindLF: leaderFollower
+	valgrind --tool=helgrind ./leaderFollower
+
+cachegrindLF: leaderFollower
+	valgrind --tool=cachegrind ./leaderFollower
+
+
 # Valgrind Targets
-memcheck: mst_solver
-	valgrind --leak-check=full --track-origins=yes ./mst_solver
+memcheck: mst_solver 
+	valgrind --leak-check=full --track-origins=yes ./mst_solver 
 
 helgrind: mst_solver
-	valgrind --tool=helgrind ./mst_solver
+	valgrind --tool=helgrind ./mst_solver 
 
-cachegrind: mst_solver
-	valgrind --tool=cachegrind ./mst_solver
+cachegrind: mst_solver 
+	valgrind --tool=cachegrind ./mst_solver 
 
 # Clean
 clean:
-	rm -f *.o mst_solver
+	rm -f *.o *.gcov *.gcda *.gcno mst_solver leaderFollower

@@ -45,5 +45,34 @@ void task::execute() {
 
 void task::enqueueTask(TaskType type, std::shared_ptr<pipelineData> data) {
     std::cout << "Enqueuing task of type: " << static_cast<int>(type) << " for FD: " << data->client_fd << std::endl;
-    server::pool.enqueue(std::make_shared<task>(type, data));
+    
+    switch (type) {
+        case TaskType::CommandProcessing:
+            server::getInstance().commandProcessing.enqueueTask([data]() {
+                // Define the task's logic here for processing commands
+            });
+            break;
+
+        case TaskType::GraphUpdate:
+            server::getInstance().graphUpdate.enqueueTask([data]() {
+                // Define the task's logic here for updating the graph
+            });
+            break;
+
+        case TaskType::MSTComputation:
+            server::getInstance().mstComputation.enqueueTask([data]() {
+                // Define the task's logic here for computing MST
+            });
+            break;
+
+        case TaskType::Response:
+            server::getInstance().response.enqueueTask([data]() {
+                // Define the task's logic here for sending the response to the client
+            });
+            break;
+
+        default:
+            std::cerr << "Unknown task type!" << std::endl;
+            break;
+    }
 }
