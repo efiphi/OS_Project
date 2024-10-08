@@ -1,7 +1,7 @@
 # Makefile
 
 CXX = g++
-COVERAGE_FLAGS = --coverage
+COVFLAGS = --coverage # gcov -b -c *.cpp
 CXXFLAGS = -Wall -std=c++17 -g
 OBJECTS = graph.o prim_mst_solver.o kruskal_mst_solver.o mst_solver.o main.o server.o task.o responseStage.o threadPool.o ActiveObject.o
 # Source files

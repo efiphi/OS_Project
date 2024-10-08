@@ -25,10 +25,7 @@ public:
     
 private:
     int port;
-
     
-   
-
     void handleClient(int client_fd, std::shared_ptr<pipelineData> data);
 };
 

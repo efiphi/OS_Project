@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include "server.hpp"
 #include <csignal>
 #include <iostream>
 
@@ -22,6 +21,6 @@ int main() {
     server srv(12346);
     globalServerInstance = &srv;
     srv.start();
-    
+
     return 0;
 }
